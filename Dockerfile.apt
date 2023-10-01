@@ -1,0 +1,38 @@
+# Install zenoh (and plugins?) on Ubuntu
+# docker build . -f Dockerfile.apt -t ros1-zenoh-apt
+# docker run -it --net host ros1-zenoh-apt
+FROM ubuntu:23.04
+
+ENV DEBIAN_FRONTEND="noninteractive"
+
+# be able to source files
+RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+
+RUN apt-get update -y
+RUN apt-get upgrade -y
+RUN apt-get install -yqq apt-utils
+
+RUN apt-get -yqq install adduser sudo systemctl
+RUN useradd -m docker && echo "docker:docker" | chpasswd && adduser docker sudo
+
+RUN apt-get install -yqq ca-certificates
+
+RUN echo "deb [trusted=yes] https://download.eclipse.org/zenoh/debian-repo/ /" | tee -a /etc/apt/sources.list > /dev/null
+RUN apt update
+# RUN apt install zenoh -yqq
+RUN apt-get install zenoh-bridge-ros1 -yqq
+
+RUN echo '#!/bin/bash' > /entrypoint.sh
+RUN echo 'echo " * Starting: /zenohd $*"' >> /entrypoint.sh
+RUN echo 'exec zenoh-bridge-ros1 $*' >> /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 7446/udp
+EXPOSE 7447/tcp
+EXPOSE 8000/tcp
+
+ENV RUST_LOG info
+
+RUN cat /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
